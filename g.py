@@ -55,7 +55,7 @@ def LoadDir(dirname):
         
     imgs=np.array(imgs)
     data=imgs.reshape(imgs.shape[0],400)
-    #data=np.divide(data,255)
+    data=np.divide(data,255)
     data = torch.from_numpy(data).float()
     torch_dataset = Data.TensorDataset(data,data)
 
@@ -108,8 +108,8 @@ def AutoEncode(train,test,LR):
                 b_x=Variable(b_x).cuda()
                 b_y=Variable(b_y).cuda()
             encoded, decoded = autoencoder(b_x)
-            loss=loss_func(decoded,b_y)
-            #loss = loss_func(torch.mul(decoded,255), torch.mul(b_y,255))      # mean square error
+            #loss=loss_func(decoded,b_y)
+            loss = loss_func(torch.mul(decoded,255), torch.mul(b_y,255))      # mean square error
             optimizer.zero_grad()               # clear gradients for this training step
             loss.backward()                     # backpropagation, compute gradients
             optimizer.step()                    # apply gradients
@@ -124,9 +124,9 @@ def AutoEncode(train,test,LR):
             b_x=Variable(b_x).cuda()
             b_y=Variable(b_y).cuda()
         encoded, decoded = autoencoder(b_x)
-        loss=loss_func(decoded,b_y)
-        #loss = loss_func(torch.mul(decoded,255), torch.mul(b_y,255))      # mean square error
-        print(loss)
+        #loss=loss_func(decoded,b_y)
+        loss = loss_func(torch.mul(decoded,255), torch.mul(b_y,255))      # mean square error
+        #print(loss)
         Loss.append(loss.cpu().detach().numpy())
     Loss=np.array(Loss).reshape(-1,len(Loss))
     #print(Loss.shape[1])
