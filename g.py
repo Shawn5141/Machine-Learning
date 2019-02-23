@@ -5,6 +5,7 @@ import torch
 import torchvision
 import torch.utils.data as Data
 import numpy as np
+from ProgressBar1 import ProgressBar
 from sklearn.decomposition import PCA
 from numpy.testing import assert_array_almost_equal
 from PIL import Image
@@ -44,7 +45,9 @@ class AutoEncoder(nn.Module):
 
 def LoadDir(dirname):
     imgs = []
+    process_bar = ProgressBar(len(os.listdir(dirname)),'Reading ok')
     for imgname in os.listdir(dirname):
+        process_bar.show_process()
         img = Image.open(os.path.join(dirname, imgname))
         img = img.convert('LA')  # conver to grayscale
         img = img.resize([20, 20])
@@ -144,4 +147,4 @@ if __name__ == '__main__':
     PCA_transform(test_imgs)
     AutoEncode(train_loader,test_loader,LR)
    
-    
+ 
