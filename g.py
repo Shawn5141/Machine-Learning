@@ -16,7 +16,6 @@ from torchvision import transforms
 import matplotlib.pyplot as plt
 import pandas as pd
 
-
 EPOCH = 10
 BATCH_SIZE = 64
 LR = 0.005
@@ -98,12 +97,11 @@ def AutoEncode(train,test,LR):
         loss_func = nn.MSELoss()
     optimizer = torch.optim.Adam(autoencoder.parameters(), lr=LR)
 
-
+    process_bar = ProgressBar(EPOCH,'Training ok')
     for epoch in range(EPOCH):
-        i=0
+        process_bar.show_process()
         for step, (x, b_label) in enumerate(train):
-            i+=1
-            print(i)
+            
             b_x = x.view(-1, 20*20)   # batch x, shape (batch, 28*28)
             b_y = x.view(-1, 20*20)   # batch y, shape (batch, 28*28)
             if torch.cuda.is_available():
@@ -115,7 +113,7 @@ def AutoEncode(train,test,LR):
             optimizer.zero_grad()               # clear gradients for this training step
             loss.backward()                     # backpropagation, compute gradients
             optimizer.step()                    # apply gradients
-            print('Epoch: ', epoch, '| train loss: %.4f' % (loss/400))
+            #print('Epoch: ', epoch, '| train loss: %.4f' % (loss/400))
     Loss=[]
    
     for step, (x, b_label) in enumerate(test):
@@ -141,8 +139,8 @@ def AutoEncode(train,test,LR):
     #torch.save(model.state_dict(), './sim_autoencoder.pth')
 
 if __name__ == '__main__':
-    train_imgs,train_loader = LoadDir('galaxy/psudo')
-    test_imgs,test_loader=LoadDir('galaxy/p_test')
+    train_imgs,train_loader = LoadDir('galaxy/train')
+    test_imgs,test_loader=LoadDir('galaxy/test')
     PCA_transform(train_imgs)
     PCA_transform(test_imgs)
     AutoEncode(train_loader,test_loader,LR)
