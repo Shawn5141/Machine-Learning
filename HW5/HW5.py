@@ -122,14 +122,14 @@ def CNN(train_data,train_target,Train_vocab,target_dict):
 				line=[int(i) for i in line]
 				_line.append(line)
 
-		print(len(_line))
+		#
 		seq_tensor = Variable(torch.zeros((seq_lengths+1,len(line))).long())
 		for idx,value in enumerate(_line):
 			seq_tensor[idx:len(line)]=torch.LongTensor(value)
-		print(seq_tensor.size)
+		
 		embeds = torch.nn.Embedding(seq_lengths, 15)
 		Embedding=embeds(seq_tensor)
-		return Embedding
+		return torch.unsqueeze(Embedding,1)
 	def Convolution_layer(Embedding,train_target):
 		BATCH_SIZE=100
 		learning_rate=0.001
@@ -140,21 +140,22 @@ def CNN(train_data,train_target,Train_vocab,target_dict):
 				self.layer1 = nn.Sequential(
 					nn.Conv2d(1, 32, kernel_size=15, stride=1, padding=7),    #32 channel (15-15+2*7)/1+1=15 #(157-15+14)/1+1=157
 					nn.ReLU(),
-					nn.MaxPool2d(kernel_size=2, stride=2))
+					nn.MaxPool2d(kernel_size=2, stride=2))                    #32 channel (15+1)/2+1=9, (157+1)/2+1=80  
 				self.layer2 = nn.Sequential(
-					nn.Conv2d(32, 64, kernel_size=15, stride=1, padding=1),   #64 channel (15-15+2)/2+1=2 #(157-15+2)/2+1=78
+					nn.Conv2d(32, 64, kernel_size=9, stride=1, padding=1),   #64 channel (9-9+2)/2+1=2 #(157-9+2)/2+1=76
 					nn.ReLU(),
-					nn.MaxPool2d(kernel_size=2, stride=2))                    #(2-2)/2+1 =1    #(78-2)/2=38             
+					nn.MaxPool2d(kernel_size=2, stride=2))                    #(2-2)/2+1 =1    #(76-2)/2=36            
 				self.drop_out = nn.Dropout()
-				self.fc1 = nn.Linear(1 * 38 * 64, 1000)
+				self.fc1 = nn.Linear(1 * 36 * 64, 1000)
 				self.fc2 = nn.Linear(1000, 9)
 			### Wout =(Win-F+2P)/S+1
 			def forward(self,x):
 				conv1=self.layer1(x)
-				conv2=self.layer2(con1)
+				conv2=self.layer2(conv1)
 				fc_input=conv2.view(conv2.size(0),-1)
 				fc1=self.fc1(fc_input)
 				fc2=self.fc2(fc1)
+				return fc2
 
 		def save_checkpoint(model, state, filename):
 			model_is_cuda = next(model.parameters()).is_cuda
@@ -167,7 +168,8 @@ def CNN(train_data,train_target,Train_vocab,target_dict):
 			_target.append(target_dict[target])
 
 		x_label=torch.LongTensor(_target)
-		print(Embedding.size(),x_label.size())
+		print(x_label)
+		print("fuck")
 
 		torch_dataset = Data.TensorDataset(Embedding,x_label)
 
@@ -175,7 +177,7 @@ def CNN(train_data,train_target,Train_vocab,target_dict):
 		dataset=torch_dataset,      # torch TensorDataset format
 		batch_size=BATCH_SIZE,      # mini batch size
 		shuffle=True,               # 
-		num_workers=4,              # 
+		num_workers=0,              # 
 		)
 
 		total_step = len(loader)
@@ -186,12 +188,14 @@ def CNN(train_data,train_target,Train_vocab,target_dict):
 		# Loss and optimizer
 		
 		optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+		criterion = nn.CrossEntropyLoss()
 		loss_list = []
 		acc_list = []
 		for epoch in range(num_epochs):
-			for images, labels in enumerate(loader):   ###Got an error on the dataloader
-				#images=Variable(images).to('device')
-				#labels=Variable(labels).to('device')
+			for i,(images, labels) in enumerate(loader):   ###Got an error on the dataloader
+				images=Variable(images)
+				labels=Variable(labels)
+				print("fuck",labels)
 				if torch.cuda.is_available():
 					images=Variable(images).cuda()
 					labels=Variable(labels).cuda()
