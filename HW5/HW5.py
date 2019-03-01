@@ -10,6 +10,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 import torch.nn.functional as F
+import time
 
 def Loadfile(trainingfile,valfile):
 	def Preprocessing(filename):
@@ -46,6 +47,7 @@ def Loadfile(trainingfile,valfile):
 
 			dic1['<S>']=k
 			dic1['</S>']=k
+			
 			l=0
 			target_dict={}
 			for index in train_target:
@@ -87,13 +89,16 @@ def CNN(train_data,train_target,Train_vocab,target_dict):
 			length.append(len(list(seq)))
 		print(len(train_data))
 		_new_data=[]
-		k=open(savefie,'w')
+		k=open(savefile,'w')
 		dic2=Train_vocab
-		v=0
+		v=1
 		for key,val in dic2.items():
 			val=v
 			v+=1
-			dic2[key]=val
+			if key=='</S>':
+				dic2[key]=0
+			else:
+				dic2[key]=val
 			
 		for seq in train_data:
 			new_data=[]
@@ -105,7 +110,7 @@ def CNN(train_data,train_target,Train_vocab,target_dict):
 			k.write('\n')
 
 			_new_data.append(new_data)
-	#Preprocess(train_data,train_target,Train_vocab,"wordvector_test.txt")
+	#Preprocess(train_data,train_target,Train_vocab,"wordvector_test.txt",target_dict)
 	def Read_word_vector(filename,Train_vocab):
 		v=0
 		character2id={}
@@ -123,12 +128,28 @@ def CNN(train_data,train_target,Train_vocab,target_dict):
 				_line.append(line)
 
 		#
+		'''
 		seq_tensor = Variable(torch.zeros((seq_lengths+1,len(line))).long())
+		#if torch.cuda.is_available():
+			#seq_tensor=seq_tensor.cuda()
 		for idx,value in enumerate(_line):
+			#if torch.cuda.is_available():
+			#seq_tensor[idx:len(line)]=torch.LongTensor(value).cuda()
+			#else:
 			seq_tensor[idx:len(line)]=torch.LongTensor(value)
-		
+			print(idx,seq_tensor)
+			if idx==len(_line)-1:
+				print(len(_line),seq_tensor[idx:len(line)])
 		embeds = torch.nn.Embedding(seq_lengths, 15)
+		
+		#if torch.cuda.is_available():
+			#Embedding=embeds(seq_tensor).cuda()
+		#else:
 		Embedding=embeds(seq_tensor)
+		'''
+		embeds = torch.nn.Embedding(seq_lengths, 15)
+		Embedding=embeds(torch.LongTensor(_line))
+		#print(Embedding)
 		return torch.unsqueeze(Embedding,1)
 	def Convolution_layer(Embedding,train_target):
 		BATCH_SIZE=100
@@ -154,7 +175,9 @@ def CNN(train_data,train_target,Train_vocab,target_dict):
 				conv2=self.layer2(conv1)
 				fc_input=conv2.view(conv2.size(0),-1)
 				fc1=self.fc1(fc_input)
+				print("fc1",fc1.size(),fc1)
 				fc2=self.fc2(fc1)
+				print("fc2",fc2.size(),fc2)
 				return fc2
 
 		def save_checkpoint(model, state, filename):
@@ -168,9 +191,9 @@ def CNN(train_data,train_target,Train_vocab,target_dict):
 			_target.append(target_dict[target])
 
 		x_label=torch.LongTensor(_target)
-		print(x_label)
-		print("fuck")
-
+		#print(x_label)
+		#print("fuck",Embedding)
+		
 		torch_dataset = Data.TensorDataset(Embedding,x_label)
 
 		loader = Data.DataLoader(
@@ -184,32 +207,55 @@ def CNN(train_data,train_target,Train_vocab,target_dict):
 		if torch.cuda.is_available():
 			model = ConvNet().cuda()
 			criterion = nn.CrossEntropyLoss().cuda()
-		model = ConvNet()
-		# Loss and optimizer
+		model = ConvNet().cuda()
+		#print(model)
+		def Training():
+			# Loss and optimizer
+			
+			optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+			criterion = nn.CrossEntropyLoss()
+			loss_list = []
+			acc_list = []
+			
+			total_train_loss = 0
+			n_batches = len(loader)
+			print_every = n_batches // 10
+			for epoch in range(num_epochs):
+				start_time = time.time()
+				running_loss = 0.0
+				for i,(images, labels) in enumerate(loader):   
+					images=Variable(images)
+					labels=Variable(labels)
+					#print("fuck",labels)
+					if torch.cuda.is_available():
+						images=Variable(images).cuda()
+						labels=Variable(labels).cuda()
+					outputs = model(images)
+					#print("Input",images)
+					#print()
+					#print("Output",outputs)
+					loss = criterion(outputs, labels)
+					loss_list.append(loss.item())
+					# Backprop and perform Adam optimisation
+					optimizer.zero_grad()
+					loss.backward()
+					optimizer.step()
+
+					running_loss += loss.data
+		    			#total_train_loss += tensor.item(loss)
+		    
+		    			#Print every 10th batch of an epoch
+					if (i + 1) % (print_every + 1) == 0:
+						print("Epoch {}, {:d}% \t train_loss: {:.2f} took: {:.2f}s".format(
+						epoch+1, int(100 * (i+1) / n_batches), running_loss / print_every, time.time() - start_time))
+		        			#Reset running loss and time
+						running_loss = 0.0
+		Training()
 		
-		optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-		criterion = nn.CrossEntropyLoss()
-		loss_list = []
-		acc_list = []
-		for epoch in range(num_epochs):
-			for i,(images, labels) in enumerate(loader):   ###Got an error on the dataloader
-				images=Variable(images)
-				labels=Variable(labels)
-				print("fuck",labels)
-				if torch.cuda.is_available():
-					images=Variable(images).cuda()
-					labels=Variable(labels).cuda()
-				outputs = model(images)
-				loss = criterion(outputs, labels)
-				loss_list.append(loss.item())
-				# Backprop and perform Adam optimisation
-				optimizer.zero_grad()
-				loss.backward()
-				optimizer.step()
-
-
-	Embedding=Read_word_vector('wordvector.txt',Train_vocab)
+		
+	Embedding=Read_word_vector('wordvector_test.txt',Train_vocab)
 	Convolution_layer(Embedding,train_target)
+
 
 
 
